@@ -1,1 +1,0 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"agent","Source":"./modules/rke2_node","Dir":"modules/rke2_node"},{"Key":"control_plane","Source":"./modules/rke2_node","Dir":"modules/rke2_node"}]}

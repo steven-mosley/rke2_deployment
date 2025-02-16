@@ -1,0 +1,35 @@
+variant: fcos
+version: 1.6.0
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - "${ssh_key}"
+
+storage:
+  files:
+    - path: /etc/rancher/rke2/config.yaml
+      mode: 0644
+      contents:
+        inline: |
+          token: "${token}"
+
+systemd:
+  units:
+    - name: rke2-install.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install RKE2 using tar method (server)
+        After=network-online.target
+        Wants=network-online.target
+        ConditionPathExists=!/var/lib/rancher/rke2/install.done
+
+        [Service]
+        Type=oneshot
+        Environment="INSTALL_RKE2_METHOD=tar"
+        ExecStart=/bin/sh -c 'INSTALL_RKE2_METHOD=${INSTALL_RKE2_METHOD} curl -sfL https://get.rke2.io | sh - && touch /var/lib/rancher/rke2/install.done && systemctl enable rke2-server.service && systemctl start rke2-server.service && rm /etc/systemd/system/rke2-install.service'
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
