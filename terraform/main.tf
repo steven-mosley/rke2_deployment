@@ -58,7 +58,7 @@ variable "control_plane_count" {
 
 variable "worker_count" {
   type        = number
-  default     = 3
+  default     = 4
   description = "Number of worker nodes to create."
 }
 
@@ -230,6 +230,28 @@ data "ignition_systemd_unit" "control_rke2_install" {
   EOT
 }
 
+data "ignition_systemd_unit" "control_helm_install" {
+  depends_on = [data.ignition_systemd_unit.control_rke2_install]
+  for_each = toset(local.control_nodes)
+  name     = "helm-install.service"
+  enabled  = true
+  content  = <<-EOT
+    [Unit]
+    Description=Install Helm
+    After=network-online.target
+    Wants=network-online.target
+    ConditionPathExists=!/var/lib/rancher/rke2/helm-install.done
+
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/sh -c 'curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sh - && touch /var/lib/rancher/rke2/helm-install.done'
+    RemainAfterExit=yes
+
+    [Install]
+    WantedBy=multi-user.target
+  EOT
+}
+
 ###############################################################################
 # IGNITION SYSTEMD UNITS (AGENT)
 ###############################################################################
@@ -262,7 +284,10 @@ data "ignition_systemd_unit" "worker_rke2_install" {
 data "ignition_config" "control_plane_ignition" {
   for_each = toset(local.control_nodes)
   users    = [data.ignition_user.core.rendered]
-  systemd  = [data.ignition_systemd_unit.control_rke2_install[each.key].rendered]
+  systemd  = [
+    data.ignition_systemd_unit.control_rke2_install[each.key].rendered,
+    data.ignition_systemd_unit.control_helm_install[each.key].rendered
+  ]
   files    = [data.ignition_file.control_hostname[each.key].rendered]
 }
 
